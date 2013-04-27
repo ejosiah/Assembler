@@ -1,0 +1,7 @@
+<assembly>
+	<constructor>
+		<mapping field="street" type="java.lang.String" />
+		<mapping field="city" type="java.lang.String" />
+		<mapping field="postcode" type="java.lang.String" />
+	</constructor>
+</assembly>

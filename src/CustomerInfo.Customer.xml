@@ -1,0 +1,12 @@
+<assembly>
+	<constructor>
+		<mapping field="firstname" type="java.lang.String" />
+		<mapping field="lastname" type="java.lang.String" />
+		<mapping field="age" type="java.lang.Integer" />
+		<mapping field="address" type="com.jay.Address" from="com.jay.AddressInfo" />
+		<mapping field="phoneNumbers" type="java.util.List[com.jay.PhoneNumber]" from="com.jay.PhoneNumberInfo" />
+		<mapping field="dob" type="java.util.Date" converter="com.jay.LongToDate" />
+		<mapping field="addresses" type="java.util.Map[com.jay.ID, com.jay.Address]" key="com.jay.IDInfo" value="com.jay.AddressInfo" />
+		<mapping field="initials" type="java.util.List" />
+	</constructor>
+</assembly>
