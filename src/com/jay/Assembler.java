@@ -5,18 +5,14 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import lombok.SneakyThrows;
 
 import org.dom4j.Document;
 import org.dom4j.Element;
@@ -39,11 +35,10 @@ public class Assembler {
 	private static final ConcurrentHashMap<String, List<Mapping>> mappingCache = new ConcurrentHashMap<>();
 	
 	public <FROM, TO> TO assemble(FROM from, Class<TO> toType){
-		Document document = getDocument(from, toType);
-		List<Mapping> mappings = retreiveMapping(document, getPath(from.getClass(), toType));
 		
 		Object toObject = null;
 		try {
+			List<Mapping> mappings = retreiveMapping(from.getClass(), toType);
 			Constructor constructor = toType.getConstructor(params(mappings));
 			toObject = constructor.newInstance(args(from, mappings));
 		} catch (Exception e) {
@@ -53,16 +48,13 @@ public class Assembler {
 		return (TO)toObject;
 	}
 	
-	private String getPath(Class fromType, Class toType){
-		return "/" + fromType.getSimpleName() + "." + toType.getSimpleName() + ".xml";
-	}
-	
-	@SneakyThrows
-	private List<Mapping> retreiveMapping(Document document, String path){
+	private List<Mapping> retreiveMapping(Class fromType, Class toType)  throws Exception{
 		List<Mapping> mappings;
+		String path = getPath(fromType, toType);
 		if(mappingCache.containsKey(path)){
 			mappings = mappingCache.get(path);
 		}else{
+			Document document = getDocument(path);
 			List<Element> elements = document.selectNodes("//mapping");
 			mappings = new ArrayList<Mapping>();
 			for(Element element : elements){
@@ -77,9 +69,20 @@ public class Assembler {
 				mappings.add(new Mapping(field, type, converter, from, key, value));
 				
 			}
+			mappingCache.put(path, mappings);
 		}
 		return mappings;
 		
+	}
+	
+	private String getPath(Class fromType, Class toType){
+		return "/" + fromType.getSimpleName() + "." + toType.getSimpleName() + ".xml";
+	}
+	
+	private Document getDocument(String path) throws Exception{
+		InputStream source = getClass().getResourceAsStream(path);
+		SAXReader reader = new SAXReader();
+		return reader.read(source);
 	}
 	
 	private Class[] params(List<Mapping> mappings){
@@ -90,8 +93,7 @@ public class Assembler {
 		return params;
 	}
 	
-	@SneakyThrows
-	private Object[] args(Object source, List<Mapping> mappings){
+	private Object[] args(Object source, List<Mapping> mappings) throws Exception{
 		Object[] args = new Object[mappings.size()];
 		for(int i = 0; i < args.length; i++){
 			Mapping mapping = mappings.get(i);
@@ -120,6 +122,44 @@ public class Assembler {
 		return args;
 	}
 	
+	private Field field(Object from, String name) throws Exception{
+		Field field = from.getClass().getDeclaredField(name);
+		field.setAccessible(true);
+		Field modifier = field.getClass().getDeclaredField("modifiers");
+		modifier.setAccessible(true);
+		modifier.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+		return field;
+		
+	}
+		
+	private Object getValues(Object source, Mapping mapping) throws Exception{
+		Collection collection = (Collection)source;
+		Collection result = getCollectionInstance(mapping);
+		for(Object obj : collection){
+			Object member = assemble(obj, mapping.getListValueType());
+			result.add(member);
+		}
+		return result;
+
+	}
+	
+	private Collection getCollectionInstance(Mapping mapping)  throws Exception{
+		Class superType = mapping.getType();
+		Class concreteType = null;
+		if(List.class.isAssignableFrom(superType)){
+			concreteType = ArrayList.class;
+		}else if(Set.class.isAssignableFrom(superType)){
+			concreteType = HashSet.class;
+		}
+		return (Collection) concreteType.newInstance();
+	}
+	
+	private Converter getConverter(Mapping mapping) throws Exception{
+		// TODO use spring injection if available
+		Class converterType = mapping.getConverterType();
+		return (Converter) converterType.newInstance();
+	}
+	
 	private Object getMap(Object from, Mapping mapping) {
 		Map map = (Map)from;
 		Map result = new HashMap();
@@ -131,59 +171,4 @@ public class Assembler {
 		return result;
 	}
 
-	@SneakyThrows
-	private Converter getConverter(Mapping mapping){
-		// TODO use spring injection if available
-		Class converterType = mapping.getConverterType();
-		return (Converter) converterType.newInstance();
-	}
-	
-	@SneakyThrows
-	private Object getValues(Object source, Mapping mapping){
-		Collection collection = (Collection)source;
-		Collection result = getCollectionInstance(mapping);
-		for(Object obj : collection){
-			Object member = assemble(obj, mapping.getListValueType());
-			result.add(member);
-		}
-		return result;
-
-	}
-	
-	@SneakyThrows
-	private Collection getCollectionInstance(Mapping mapping){
-		Class superType = mapping.getType();
-		Class concreteType = null;
-		if(List.class.isAssignableFrom(superType)){
-			concreteType = ArrayList.class;
-		}else if(Set.class.isAssignableFrom(superType)){
-			concreteType = HashSet.class;
-		}
-		return (Collection) concreteType.newInstance();
-	}
-	
-	@SneakyThrows
-	private Field field(Object from, String name){
-		Field field = from.getClass().getDeclaredField(name);
-		field.setAccessible(true);
-		Field modifier = field.getClass().getDeclaredField("modifiers");
-		modifier.setAccessible(true);
-		modifier.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-		return field;
-		
-	}
-	
-	@SneakyThrows
-	private Class getClass(String className){
-		return className != null ? Class.forName(className) : null;
-	}
-	
-	@SneakyThrows
-	private Document getDocument(Object from, Class toType){
-		String path =  "/" + from.getClass().getSimpleName() + "." + toType.getSimpleName() + ".xml";
-	//	System.out.println(path);
-		InputStream source = getClass().getResourceAsStream(path);
-		SAXReader reader = new SAXReader();
-		return reader.read(source);
-	}
 }
