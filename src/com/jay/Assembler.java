@@ -134,24 +134,13 @@ public class Assembler {
 		
 	private Object getValues(Object source, Mapping mapping) throws Exception{
 		Collection collection = (Collection)source;
-		Collection result = getCollectionInstance(mapping);
+		Collection result = (Collection) source.getClass().newInstance();
 		for(Object obj : collection){
 			Object member = assemble(obj, mapping.getListValueType());
 			result.add(member);
 		}
 		return result;
 
-	}
-	
-	private Collection getCollectionInstance(Mapping mapping)  throws Exception{
-		Class superType = mapping.getType();
-		Class concreteType = null;
-		if(List.class.isAssignableFrom(superType)){
-			concreteType = ArrayList.class;
-		}else if(Set.class.isAssignableFrom(superType)){
-			concreteType = HashSet.class;
-		}
-		return (Collection) concreteType.newInstance();
 	}
 	
 	private Converter getConverter(Mapping mapping) throws Exception{

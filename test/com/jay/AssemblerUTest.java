@@ -2,6 +2,7 @@ package com.jay;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -36,10 +37,11 @@ public class AssemblerUTest {
 		
 		List<String> initials = Arrays.asList("J.J", "JOJ", "S.H");
 		
-		CustomerInfo cust = new CustomerInfo("Josiah", "Ebhomenye", 29, add, Arrays.asList(
+		CustomerInfo cust = new CustomerInfo("Josiah", "Ebhomenye", 29, add
+				, new ArrayList<PhoneNumberInfo>(Arrays.asList(
 				new PhoneNumberInfo("07854200230"), 
 				new PhoneNumberInfo("0792355555"), 
-				new PhoneNumberInfo("20708540215")), dob.getTimeInMillis(), map, initials);
+				new PhoneNumberInfo("20708540215"))), dob.getTimeInMillis(), map, initials);
 		
 		Address address = new Address("17 Mead Road", "Edgware", "HA8 6LH");
 		Address address2 = new Address("15 Mead Road", "Edgware", "HA8 6LH");
